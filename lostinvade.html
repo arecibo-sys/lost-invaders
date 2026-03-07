@@ -23,20 +23,41 @@
   #info { color: #004400; font-size: 11px; margin-top: 8px; letter-spacing: 2px; }
   #touch-controls {
     display: none; position: fixed; bottom: 0; left: 0; right: 0;
-    height: 120px; z-index: 100; pointer-events: none;
+    height: 160px; z-index: 100; pointer-events: none;
   }
   .touch-btn {
     position: absolute; pointer-events: auto;
-    width: 70px; height: 70px; border-radius: 50%;
-    background: rgba(0,255,65,0.15); border: 2px solid rgba(0,255,65,0.3);
-    color: #00FF41; font-size: 28px; font-family: monospace;
+    width: 72px; height: 72px; border-radius: 50%;
+    background: rgba(0,255,65,0.12); border: 2px solid rgba(0,255,65,0.35);
+    color: #00FF41; font-family: monospace;
     display: flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
+    transition: box-shadow 0.08s, background 0.08s, transform 0.08s;
   }
-  .touch-btn:active { background: rgba(0,255,65,0.35); }
-  #btn-left { left: 20px; bottom: 25px; }
-  #btn-right { left: 110px; bottom: 25px; }
-  #btn-fire { right: 20px; bottom: 25px; width: 80px; height: 80px; font-size: 14px; letter-spacing: 1px; }
+  .touch-btn.pressed {
+    background: rgba(0,255,65,0.4);
+    box-shadow: 0 0 18px rgba(0,255,65,0.6), inset 0 0 12px rgba(0,255,65,0.3);
+    transform: scale(0.93);
+  }
+  #btn-left { left: 16px; bottom: 20px; font-size: 32px; }
+  #btn-right { left: 104px; bottom: 20px; font-size: 32px; }
+  #btn-fire { right: 16px; bottom: 20px; width: 88px; height: 88px; font-size: 15px; letter-spacing: 1px; font-weight: bold; }
+  #btn-fire.pressed { box-shadow: 0 0 24px rgba(255,50,50,0.7), inset 0 0 14px rgba(255,50,50,0.3); background: rgba(255,50,50,0.35); }
+  .touch-btn-small {
+    position: absolute; pointer-events: auto;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(0,255,65,0.08); border: 1.5px solid rgba(0,255,65,0.25);
+    color: #00FF41; font-size: 16px; font-family: monospace;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: box-shadow 0.08s, background 0.08s;
+  }
+  .touch-btn-small.pressed {
+    background: rgba(0,255,65,0.35);
+    box-shadow: 0 0 12px rgba(0,255,65,0.5);
+  }
+  #btn-pause { right: 16px; bottom: 126px; }
+  #btn-music { right: 72px; bottom: 126px; }
   @media (hover: none) and (pointer: coarse) {
     #touch-controls { display: block; }
     #info { display: none; }
@@ -48,9 +69,11 @@
 <canvas id="overlay"></canvas>
 <div id="info">W/SPACE FIRE | A/D or ARROWS MOVE | M MUSIC | P PAUSE | F FULLSCREEN | ENTER START</div>
 <div id="touch-controls">
-  <div class="touch-btn" id="btn-left">&larr;</div>
-  <div class="touch-btn" id="btn-right">&rarr;</div>
+  <div class="touch-btn" id="btn-left">&#9664;</div>
+  <div class="touch-btn" id="btn-right">&#9654;</div>
   <div class="touch-btn" id="btn-fire">FIRE</div>
+  <div class="touch-btn-small" id="btn-pause">&#9646;&#9646;</div>
+  <div class="touch-btn-small" id="btn-music">&#9835;</div>
 </div>
 <script>
 const W = 256, H = 280;
@@ -741,29 +764,72 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => { keys[e.key] = false; });
 
 // ===== TOUCH INPUT =====
+function haptic(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch(e) {} }
+
 function bindTouch(id, keyName) {
   const btn = document.getElementById(id);
   if (!btn) return;
-  btn.addEventListener('touchstart', e => { e.preventDefault(); keys[keyName] = true; });
-  btn.addEventListener('touchend', e => { e.preventDefault(); keys[keyName] = false; });
-  btn.addEventListener('touchcancel', e => { keys[keyName] = false; });
+  const activeTouches = new Set();
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) activeTouches.add(t.identifier);
+    keys[keyName] = true;
+    btn.classList.add('pressed');
+    haptic(12);
+  }, { passive: false });
+  btn.addEventListener('touchend', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) activeTouches.delete(t.identifier);
+    if (activeTouches.size === 0) { keys[keyName] = false; btn.classList.remove('pressed'); }
+  }, { passive: false });
+  btn.addEventListener('touchcancel', e => {
+    for (const t of e.changedTouches) activeTouches.delete(t.identifier);
+    if (activeTouches.size === 0) { keys[keyName] = false; btn.classList.remove('pressed'); }
+  });
 }
 bindTouch('btn-left', 'ArrowLeft');
 bindTouch('btn-right', 'ArrowRight');
 bindTouch('btn-fire', ' ');
 
+// Pause button
+(function() {
+  const btn = document.getElementById('btn-pause');
+  if (!btn) return;
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault(); btn.classList.add('pressed'); haptic(15);
+    if (state === GS.PLAYING || state === GS.BOSS) state = GS.PAUSED;
+    else if (state === GS.PAUSED) state = GS.PLAYING;
+  }, { passive: false });
+  btn.addEventListener('touchend', e => { e.preventDefault(); btn.classList.remove('pressed'); }, { passive: false });
+  btn.addEventListener('touchcancel', () => btn.classList.remove('pressed'));
+})();
+
+// Music toggle button
+(function() {
+  const btn = document.getElementById('btn-music');
+  if (!btn) return;
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault(); btn.classList.add('pressed'); haptic(15);
+    musicEnabled = !musicEnabled;
+    if (musicGain) musicGain.gain.value = musicEnabled ? 0.4 : 0;
+    btn.style.opacity = musicEnabled ? '1' : '0.4';
+  }, { passive: false });
+  btn.addEventListener('touchend', e => { e.preventDefault(); btn.classList.remove('pressed'); }, { passive: false });
+  btn.addEventListener('touchcancel', () => btn.classList.remove('pressed'));
+})();
+
 // Tap canvas to start game on mobile
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   if (state === GS.TITLE || state === GS.GAME_OVER) {
-    initAudio();
+    initAudio(); haptic(30);
     score = 0; lives = 3; wave = 1;
     player.x = 120; player.alive = true;
     comboCount = 0; comboTimer = 0;
     setupWave();
     sfxWaveChange();
   }
-});
+}, { passive: false });
 
 // ===== MAIN UPDATE =====
 let lastTime = 0;
