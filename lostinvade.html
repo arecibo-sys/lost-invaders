@@ -9,7 +9,7 @@
   body {
     background: #000;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
+    align-items: center; justify-content: flex-start;
     min-height: 100vh; font-family: monospace; overflow: hidden;
     touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
   }
@@ -57,7 +57,7 @@ const W = 256, H = 280;
 const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 function calcScale() {
   const maxW = window.innerWidth - 10;
-  const maxH = isMobile ? window.innerHeight - 140 : window.innerHeight - 30;
+  const maxH = isMobile ? window.innerHeight - 130 : window.innerHeight - 30;
   if (isMobile) {
     return Math.max(1, Math.min(maxW / W, maxH / H));
   }
