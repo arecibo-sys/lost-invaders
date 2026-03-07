@@ -17,6 +17,7 @@
     image-rendering: pixelated; image-rendering: crisp-edges;
     box-shadow: 0 0 40px #00FF41, 0 0 80px #003300;
     border: 1px solid #003300;
+    max-width: 100vw;
   }
   #overlay { position: absolute; pointer-events: none; }
   #info { color: #004400; font-size: 11px; margin-top: 8px; letter-spacing: 2px; }
@@ -56,25 +57,44 @@ const W = 256, H = 280;
 const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 function calcScale() {
   const maxW = window.innerWidth - 10;
-  const maxH = isMobile ? window.innerHeight - 130 : window.innerHeight - 30;
+  const maxH = isMobile ? window.innerHeight - 140 : window.innerHeight - 30;
+  if (isMobile) {
+    return Math.max(1, Math.min(maxW / W, maxH / H));
+  }
   return Math.max(1, Math.min(Math.floor(maxW / W), Math.floor(maxH / H)));
 }
 let SCALE = calcScale();
+const RENDER_SCALE = isMobile ? 2 : SCALE;
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-canvas.width = W * SCALE; canvas.height = H * SCALE;
-ctx.scale(SCALE, SCALE);
+canvas.width = W * RENDER_SCALE; canvas.height = H * RENDER_SCALE;
+ctx.scale(RENDER_SCALE, RENDER_SCALE);
+if (isMobile) {
+  canvas.style.width = Math.floor(W * SCALE) + 'px';
+  canvas.style.height = Math.floor(H * SCALE) + 'px';
+}
 const overlay = document.getElementById('overlay');
-overlay.width = W * SCALE; overlay.height = H * SCALE;
+overlay.width = W * RENDER_SCALE; overlay.height = H * RENDER_SCALE;
 overlay.style.position = 'absolute';
+if (isMobile) {
+  overlay.style.width = Math.floor(W * SCALE) + 'px';
+  overlay.style.height = Math.floor(H * SCALE) + 'px';
+}
 const octx = overlay.getContext('2d');
 window.addEventListener('resize', () => {
   const newScale = calcScale();
   if (newScale !== SCALE) {
     SCALE = newScale;
-    canvas.width = W * SCALE; canvas.height = H * SCALE;
-    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
-    overlay.width = W * SCALE; overlay.height = H * SCALE;
+    const rs = isMobile ? 2 : SCALE;
+    canvas.width = W * rs; canvas.height = H * rs;
+    ctx.setTransform(rs, 0, 0, rs, 0, 0);
+    overlay.width = W * rs; overlay.height = H * rs;
+    if (isMobile) {
+      canvas.style.width = Math.floor(W * SCALE) + 'px';
+      canvas.style.height = Math.floor(H * SCALE) + 'px';
+      overlay.style.width = Math.floor(W * SCALE) + 'px';
+      overlay.style.height = Math.floor(H * SCALE) + 'px';
+    }
   }
 });
 
